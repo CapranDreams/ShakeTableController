@@ -123,6 +123,22 @@ peripheral.writeValue("START".data(using: .utf8)!,
                      type: .withResponse)
 ```
 
+An example response when asking for the CONFIG could look like below:
+```swift
+MICROSTEPS:1600
+PITCH:5.00
+STEPS_PER_MM:320.00
+ACCEL:50.00
+VELOCITY:100.00
+POS1:0.00
+POS2:50.00
+TRAVEL:50.00
+INVERTPULSE:1
+INVERTDIR:1
+INVERTENABLE:1
+MOTOR_STATUS:STOPPED
+```
+
 ### LED Indicators
 
 - **Single blink**: Direction change during motion
