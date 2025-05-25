@@ -139,6 +139,14 @@ void processCommand(std::string command) {
     digitalWrite(ENABLE_PIN, motorRunning ? (config.invertEnable ? HIGH : LOW) : (config.invertEnable ? LOW : HIGH));
     Serial.print("Enable pin inverted: ");
     Serial.println(config.invertEnable ? "true" : "false");
+  } else if (command == "CONFIG") {
+    String configData = getConfigString();
+    if (deviceConnected && pCharacteristic) {
+      pCharacteristic->setValue(configData.c_str());
+      pCharacteristic->notify();
+      Serial.println("Configuration sent via Bluetooth");
+    }
+    printConfig();
   }
 }
 
@@ -172,6 +180,23 @@ void updateLED() {
   } else {
     digitalWrite(LED_PIN, LOW);
   }
+}
+
+String getConfigString() {
+  String configStr = "";
+  configStr += "MICROSTEPS:" + String(config.microSteps) + "\n";
+  configStr += "PITCH:" + String(config.ballScrewPitch) + "\n";
+  configStr += "STEPS_PER_MM:" + String(stepsPerMm()) + "\n";
+  configStr += "ACCEL:" + String(config.acceleration) + "\n";
+  configStr += "VELOCITY:" + String(config.maxVelocity) + "\n";
+  configStr += "POS1:" + String(config.position1) + "\n";
+  configStr += "POS2:" + String(config.position2) + "\n";
+  configStr += "TRAVEL:" + String(abs(config.position2 - config.position1)) + "\n";
+  configStr += "INVERTPULSE:" + String(config.invertPulse ? "1" : "0") + "\n";
+  configStr += "INVERTDIR:" + String(config.invertDir ? "1" : "0") + "\n";
+  configStr += "INVERTENABLE:" + String(config.invertEnable ? "1" : "0") + "\n";
+  configStr += "MOTOR_STATUS:" + String(motorRunning ? "RUNNING" : "STOPPED");
+  return configStr;
 }
 
 void printConfig() {
