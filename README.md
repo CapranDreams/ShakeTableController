@@ -11,6 +11,7 @@ A Bluetooth-enabled motor controller for ESP32-WROOM development boards, designe
 - **Pin Logic Inversion**: Support for both active-high and active-low motor drivers
 - **Visual Feedback**: LED indicators for system status and command acknowledgment
 - **Non-blocking Operation**: All operations run without blocking the main loop
+- **EEPROM Memory**: Emulated EEPROM flash memory storage for saving configuration between boots
 
 ## Hardware Requirements
 
