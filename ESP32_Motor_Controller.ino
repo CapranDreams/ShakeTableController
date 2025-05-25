@@ -3,6 +3,7 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+#include <Preferences.h>
 
 #define PULSE_PIN 26
 #define DIR_PIN 27
@@ -13,6 +14,7 @@
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
 AccelStepper stepper(AccelStepper::DRIVER, PULSE_PIN, DIR_PIN);
+Preferences preferences;
 
 struct MotorConfig {
   int microSteps = 1600;
@@ -93,6 +95,7 @@ void processCommand(std::string command) {
     // Update stepper parameters with new steps/mm ratio
     stepper.setMaxSpeed(mmToSteps(config.maxVelocity));
     stepper.setAcceleration(mmToSteps(config.acceleration));
+    saveConfig();
   } else if (command.find("PITCH:") == 0) {
     config.ballScrewPitch = atof(command.substr(6).c_str());
     Serial.print("Ball screw pitch set to: ");
@@ -101,44 +104,52 @@ void processCommand(std::string command) {
     // Update stepper parameters with new steps/mm ratio
     stepper.setMaxSpeed(mmToSteps(config.maxVelocity));
     stepper.setAcceleration(mmToSteps(config.acceleration));
+    saveConfig();
   } else if (command.find("ACCEL:") == 0) {
     config.acceleration = atof(command.substr(6).c_str());
     stepper.setAcceleration(mmToSteps(config.acceleration));
     Serial.print("Acceleration set to: ");
     Serial.print(config.acceleration);
     Serial.println(" mm/s²");
+    saveConfig();
   } else if (command.find("VELOCITY:") == 0) {
     config.maxVelocity = atof(command.substr(9).c_str());
     stepper.setMaxSpeed(mmToSteps(config.maxVelocity));
     Serial.print("Max velocity set to: ");
     Serial.print(config.maxVelocity);
     Serial.println(" mm/s");
+    saveConfig();
   } else if (command.find("POS1:") == 0) {
     config.position1 = atof(command.substr(5).c_str());
     Serial.print("Position 1 set to: ");
     Serial.print(config.position1);
     Serial.println(" mm");
+    saveConfig();
   } else if (command.find("POS2:") == 0) {
     config.position2 = atof(command.substr(5).c_str());
     Serial.print("Position 2 set to: ");
     Serial.print(config.position2);
     Serial.println(" mm");
+    saveConfig();
   } else if (command.find("INVERTPULSE:") == 0) {
     config.invertPulse = command.substr(12) == "1" || command.substr(12) == "true";
     stepper.setPinsInverted(config.invertDir, config.invertPulse, config.invertEnable);
     Serial.print("Pulse pin inverted: ");
     Serial.println(config.invertPulse ? "true" : "false");
+    saveConfig();
   } else if (command.find("INVERTDIR:") == 0) {
     config.invertDir = command.substr(10) == "1" || command.substr(10) == "true";
     stepper.setPinsInverted(config.invertDir, config.invertPulse, config.invertEnable);
     Serial.print("Direction pin inverted: ");
     Serial.println(config.invertDir ? "true" : "false");
+    saveConfig();
   } else if (command.find("INVERTENABLE:") == 0) {
     config.invertEnable = command.substr(13) == "1" || command.substr(13) == "true";
     stepper.setPinsInverted(config.invertDir, config.invertPulse, config.invertEnable);
     digitalWrite(ENABLE_PIN, motorRunning ? (config.invertEnable ? HIGH : LOW) : (config.invertEnable ? LOW : HIGH));
     Serial.print("Enable pin inverted: ");
     Serial.println(config.invertEnable ? "true" : "false");
+    saveConfig();
   } else if (command == "CONFIG") {
     String configData = getConfigString();
     if (deviceConnected && pCharacteristic) {
@@ -158,6 +169,36 @@ void processSerialCommand() {
     blinkCount = 0;
     processCommand(command.c_str());
   }
+}
+
+void saveConfig() {
+  preferences.begin("motor-config", false);
+  preferences.putInt("microSteps", config.microSteps);
+  preferences.putFloat("pitch", config.ballScrewPitch);
+  preferences.putFloat("accel", config.acceleration);
+  preferences.putFloat("velocity", config.maxVelocity);
+  preferences.putFloat("pos1", config.position1);
+  preferences.putFloat("pos2", config.position2);
+  preferences.putBool("invPulse", config.invertPulse);
+  preferences.putBool("invDir", config.invertDir);
+  preferences.putBool("invEnable", config.invertEnable);
+  preferences.end();
+  Serial.println("Configuration saved to flash");
+}
+
+void loadConfig() {
+  preferences.begin("motor-config", true);  // true = read-only mode
+  config.microSteps = preferences.getInt("microSteps", 1600);
+  config.ballScrewPitch = preferences.getFloat("pitch", 5.0);
+  config.acceleration = preferences.getFloat("accel", 50.0);
+  config.maxVelocity = preferences.getFloat("velocity", 100.0);
+  config.position1 = preferences.getFloat("pos1", 0.0);
+  config.position2 = preferences.getFloat("pos2", 50.0);
+  config.invertPulse = preferences.getBool("invPulse", true);
+  config.invertDir = preferences.getBool("invDir", true);
+  config.invertEnable = preferences.getBool("invEnable", true);
+  preferences.end();
+  Serial.println("Configuration loaded from flash");
 }
 
 void updateLED() {
@@ -238,6 +279,9 @@ void printConfig() {
 void setup() {
   Serial.begin(115200);
   Serial.println("ESP32 Motor Controller Starting...");
+  
+  // Load configuration from flash memory
+  loadConfig();
   
   pinMode(LED_PIN, OUTPUT);
   pinMode(ENABLE_PIN, OUTPUT);
