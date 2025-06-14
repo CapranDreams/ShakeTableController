@@ -240,8 +240,51 @@ void processCommand(std::string command) {
       Serial.print(uploadLineCount);
       Serial.println(" lines");
     }
+  } else if (command.find("BATCH:") == 0 && dataUploadMode) {
+    // Handle batch upload format: BATCH:value1,value2,value3,...
+    String batchData = command.substr(6).c_str();
+    int batchStartCount = uploadLineCount;
+    
+    // Process each value in the batch
+    int startIdx = 0;
+    int commaIdx = batchData.indexOf(',');
+    
+    while (commaIdx != -1) {
+      String value = batchData.substring(startIdx, commaIdx);
+      value.trim();
+      if (value.length() > 0) {
+        uploadBuffer += value;
+        uploadBuffer += "\n";
+        uploadLineCount++;
+      }
+      startIdx = commaIdx + 1;
+      commaIdx = batchData.indexOf(',', startIdx);
+    }
+    
+    // Process the last value
+    String lastValue = batchData.substring(startIdx);
+    lastValue.trim();
+    if (lastValue.length() > 0) {
+      uploadBuffer += lastValue;
+      uploadBuffer += "\n";
+      uploadLineCount++;
+    }
+    
+    int batchValueCount = uploadLineCount - batchStartCount;
+    Serial.print("Batch received: ");
+    Serial.print(batchValueCount);
+    Serial.print(" values, total: ");
+    Serial.print(uploadLineCount);
+    Serial.println(" lines");
+    
+    // Report progress every 100 lines
+    if (uploadLineCount >= 100 && (uploadLineCount % 100) < batchValueCount) {
+      Serial.print("Progress: ");
+      Serial.print(uploadLineCount);
+      Serial.println(" lines received...");
+    }
   } else if (dataUploadMode && command.length() > 0) {
-    // Process CSV line during upload
+    // Process single CSV line during upload (existing code)
     uploadBuffer += command.c_str();
     uploadBuffer += "\n";
     uploadLineCount++;
@@ -914,6 +957,7 @@ void printHelp() {
   Serial.println("\nData Upload:");
   Serial.println("  UPLOAD:START - Begin CSV data upload");
   Serial.println("  UPLOAD:END - Complete data upload");
+  Serial.println("  BATCH:v1,v2,v3,... - Upload multiple values at once (during upload)");
   Serial.println("\nMonitoring:");
   Serial.println("  MONITOR:POS - Toggle position monitoring");
   Serial.println("  MONITOR:VEL - Toggle velocity monitoring");

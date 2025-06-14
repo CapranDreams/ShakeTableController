@@ -31,8 +31,8 @@ A comprehensive Bluetooth Low Energy (BLE) enabled motor controller for ESP32, d
 - **ESP32 Development Board**
 - **DM542T Stepper Motor Driver**
 - **Stepper Motor** (compatible with DM542T)
-- **Ball Screw Assembly** (5mm pitch recommended)
-- **Power Supply** (24V recommended for DM542T)
+- **Ball Screw Assembly** (5mm pitch used here or 10mm pitch for improvement)
+- **Power Supply** (36V recommended for DM542T)
 
 ### Optional Components
 - **Limit Switch** for homing (connects to GPIO23)
@@ -40,8 +40,8 @@ A comprehensive Bluetooth Low Energy (BLE) enabled motor controller for ESP32, d
 - **Pull-down resistor** (internal pulldown used for homing switch)
 
 ### Recommended Specifications
-- Ball screw pitch: 5mm per revolution
-- Microstep setting: 1600 steps/revolution (8 microsteps)
+- Ball screw pitch: 5mm per revolution (10mm would be more ideal, but I am using 5mm)
+- Microstep setting: 400 - 1600 (lower is better since we want fast response times and higher torque)
 - Homing switch: Normally open, connects GPIO23 to VCC when closed
 
 ## Pin Configuration
@@ -89,23 +89,47 @@ A comprehensive Bluetooth Low Energy (BLE) enabled motor controller for ESP32, d
 
 The motor controller can be configured via BLE commands (iOS app) or serial commands (Arduino IDE). All settings are automatically saved to flash memory.
 
+### Available Parameters
+
+- **Microsteps**: Steps per revolution (default: 1600)
+- **Ball Screw Pitch**: Millimeters per revolution (default: 5.0)
+- **Acceleration**: Maximum acceleration in mm/s² (default: 50.0)
+- **Maximum Velocity**: Maximum speed in mm/s (default: 100.0)
+- **Position 1**: First position limit in mm (default: 0.0)
+- **Position 2**: Second position limit in mm (default: 50.0)
+- **Pin Inversions**: Pulse, direction, and enable pin logic
+
+### Configuration Methods
+
+1. **Via iOS App**: Wireless configuration with graphical interface
+2. **Via Serial Commands**: Direct control through Arduino IDE Serial Monitor
+3. **Automatic Loading**: Settings persist across power cycles
+
 ### Operation Modes
+
+#### Normal Mode
+- Motor moves back and forth between Position 1 and Position 2
+- Configurable acceleration and velocity profiles
+- Automatic direction reversal at position limits
 
 #### Playback Mode
 - Follows historic CSV data for position vs. time
 - Supports up to 2400 data points (120 seconds at 20Hz)
 - Linear interpolation for smooth motion
-- Only displacement stored, time reconstructed from 20Hz sampling
-- Need to upload from App first
+- **50% Memory Optimized** - only displacement stored, time reconstructed from 20Hz sampling
+- Data stored persistently in SPIFFS
+- Upload full dataset via optimized displacement-only format
 
 #### Acceleration Test Mode
 - Configurable distance and acceleration parameters
 - Continuous back-and-forth motion with constant acceleration/deceleration
 - Ideal for testing and visualization of acceleration profiles
 
-#### Homing
+#### Homing Mode
 - Automatic position referencing using limit switch
 - Moves forward 5mm, then backward until switch triggers
+- Sets current position to 0.0mm when switch activates
+- Can be interrupted with STOP command
 
 ## Command Reference
 
@@ -132,8 +156,9 @@ The motor controller can be configured via BLE commands (iOS app) or serial comm
 
 ### Data Upload Commands
 - `UPLOAD:START` - Begin CSV data upload
-- *(Send CSV lines between START and END)*
 - `UPLOAD:END` - Complete data upload and save
+- `BATCH:value1,value2,value3,...` - Upload multiple values in a single command (up to 50 values)
+- *(Send individual CSV lines or BATCH commands between START and END)*
 
 ### Monitoring Commands
 - `MONITOR:POS` - Toggle position monitoring
@@ -147,7 +172,6 @@ The motor controller can be configured via BLE commands (iOS app) or serial comm
 - `HELP` - Display command help
 
 ## BLE Protocol
-Change these if you have multiple devices, this is what I used. 
 
 ### Service UUID
 `4fafc201-1fb5-459e-8fcc-c5c9c331914b`
